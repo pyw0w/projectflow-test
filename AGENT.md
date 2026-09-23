@@ -53,11 +53,18 @@ projectflow-test/
 ├── bugs.md                        # found/fixed bugs + full list of checks
 ├── scripts/
 │   ├── manual-check.mjs           # Playwright layout/UX verification (dev-only)
-│   └── pagination-check.mjs       # Playwright pagination verification (dev-only)
+│   ├── pagination-check.mjs       # Playwright pagination verification (dev-only)
+│   └── projects-check.mjs         # Playwright Projects-page E2E (dev-only)
 └── src/
     ├── main.jsx                   # ReactDOM entry; imports token/global CSS
-    ├── App.jsx                    # composition root: state (query, sort) + layout
+    ├── App.jsx                    # app shell: safe-area container + Nav + hash router
     ├── App.module.css
+    ├── pages/
+    │   ├── RepoSearchPage.jsx     # original search page (state: query, sort, pagination)
+    │   ├── RepoSearchPage.module.css
+    │   ├── ProjectsPage.jsx       # test page: list + live search + create form
+    │   ├── ProjectsPage.module.css
+    │   └── *.test.jsx
     ├── styles/
     │   ├── tokens.css             # ★ single source of design tokens
     │   └── global.css             # resets/base styles, all values from tokens
@@ -67,9 +74,12 @@ projectflow-test/
     │   └── *.test.js
     ├── hooks/
     │   ├── useRepos.js            # cache-first + background refresh lifecycle
-    │   └── useRepos.test.js
+    │   ├── useProjects.js         # CRUD + localStorage for the Projects page
+    │   ├── useHashRoute.js        # minimal hash router (no dependency)
+    │   └── *.test.js
     ├── components/                # one component + one CSS module per file
     │   ├── SearchBar/…            # (flat files: X.jsx + X.module.css + X.test.jsx)
+    │   ├── Nav                    # top tabs: Repo Search / Projects
     │   ├── Toolbar                # row→column layout wrapper (breakpoint 420px)
     │   ├── RepoCard               # card: name/link, desc, language dot, stars, date, topics
     │   ├── RepoList               # maps repos → RepoCard
@@ -78,6 +88,9 @@ projectflow-test/
     │   ├── SortControl            # updated | stars | name
     │   ├── Skeleton               # shimmer placeholders on first load
     │   ├── LoadMore               # "Show more" pagination + N-of-M counter
+    │   ├── ProjectCard            # user project: link/private badge/dot/delete
+    │   ├── ProjectForm            # modal create form (validation, Esc/backdrop)
+    │   ├── Nav                    # (see above)
     │   └── RateLimitBadge         # remaining anonymous quota (60/h)
     └── test/
         ├── setup.js               # jest-dom, cleanup, MSW, localStorage shim
@@ -88,7 +101,10 @@ projectflow-test/
 
 | Component | Responsibility |
 |---|---|
-| `App` | Owns `query`/`sort` state, computes filtered+sorted list, paginates it (`PAGE_SIZE = 20`, `shown` counter reset on query/sort change), picks the right state view (Skeleton/Error/Empty/List+LoadMore), header + warning banner + footer. |
+| `App` | App shell only: safe-area container, `Nav`, hash routing — `#/` → `RepoSearchPage`, `#/projects` → `ProjectsPage`. No data logic here. |
+| `Nav` | Pill tabs between the two pages; `aria-current` marks the active route. |
+| `RepoSearchPage` | Original search page (unchanged behaviour): owns `query`/`sort`, filters+sorts, paginates (`PAGE_SIZE = 20`), picks state view (Skeleton/Error/Empty/List+LoadMore), header + warning banner + footer. |
+| `ProjectsPage` | Test "Projects" page: list from `useProjects`, live client-side search, "New project" button opens `ProjectForm`, count badge, empty state, footer noting localStorage storage. |
 | `Toolbar` | Layout only: search+actions row on desktop, column below 420px (CSS `max-width: 419.98px`). |
 | `SearchBar` | Controlled search input with icon and clear button; emits raw query via `onChange`. |
 | `SortControl` | Native select (updated/stars/name); emits sort key. |
@@ -98,6 +114,8 @@ projectflow-test/
 | `ErrorState` | Blocking error (message, rate-limit reset time, retry button). Never a blank screen. |
 | `Skeleton` | 4 shimmering placeholder cards during the very first load (no cache). |
 | `LoadMore` | Incremental pagination: shows `N of M repositories` and a "Show more" button; hidden when everything is visible. |
+| `ProjectCard` | One user project: name (link only when URL given), Private badge, language dot, description, creation date, delete button. |
+| `ProjectForm` | Modal create form: name (required), description, language, URL, Private checkbox; trims values, validates name, closes on Cancel/Escape/backdrop. |
 | `RateLimitBadge` | `remaining/60` quota chip; amber ≤10, red at 0. |
 
 Non-visual core:
@@ -107,6 +125,8 @@ Non-visual core:
 | `api/githubApi.js` | `fetchAllRepos()` — GET /users/pyw0w/repos with `per_page=100` pagination (max 10 pages), reads `X-RateLimit-*`, throws typed `GitHubApiError`. |
 | `api/cache.js` | `readCache/writeCache/clearCache` — localStorage key `pyw0w:repos-cache:v1`, shape `{repos[], fetchedAt}`, tolerant of corrupt data/quota errors. |
 | `hooks/useRepos.js` | Lifecycle: cache-first render → background refresh → `status` (loading/ready/error), non-blocking `error` banner when cache exists, `refresh()` for the button. |
+| `hooks/useProjects.js` | CRUD for the Projects page; localStorage key `pyw0w:projects:v1`, shape `{id, name, description, language, url, isPrivate, createdAt}[]`, tolerant of corrupt data. Private repos are added **manually via the form** — the anonymous API never returns them and the app has no tokens. |
+| `hooks/useHashRoute.js` | Hash-based routing (`#/`, `#/projects`) — works on GitHub Pages without server rewrites. |
 
 ## Design tokens
 

@@ -3,7 +3,9 @@
 A lightweight search page over the **public GitHub repositories of
 [pyw0w](https://github.com/pyw0w)**. Type a query — the list filters instantly
 by repository name, description, language and topics. No backend, no tokens,
-fully static.
+fully static. Includes a second test page — **Projects** (`#/projects`): a
+locally stored list of your own repositories (public *and* private) with a
+create form.
 
 **Live:** <https://pyw0w.github.io/projectflow-test/>
 
@@ -23,6 +25,11 @@ fully static.
   and stack into a column below 420px (no overlap), with safe-area insets.
 - 📄 **Pagination** — the list shows 20 repositories at a time with a
   "Show more" button and an `N of M` counter; resets on query/sort change.
+- 🗂 **Projects page** (`#/projects`) — test list of your own repos: live
+  search, **create form in a modal** (name, description, language, URL,
+  Private flag), saved to `localStorage` (survives reload), delete support.
+  Private repositories are added manually — the anonymous API never exposes
+  them and the app contains no tokens.
 - 🚦 **Rate-limit awareness** — badge shows the remaining anonymous quota
   (60 req/hour) and the UI degrades softly instead of white-screening.
 
@@ -42,7 +49,7 @@ this single-page app doesn't need.
 ```bash
 npm ci            # install dependencies
 npm run dev       # dev server → http://localhost:5173/projectflow-test/
-npm test          # run the test suite (43 tests, no network access)
+npm test          # run the test suite (70 tests, no network access)
 npm run build     # production bundle → dist/
 npm run preview   # serve the production bundle locally
 ```
@@ -71,6 +78,29 @@ query matches nothing; an error card with a retry button if the API is down or
 rate-limited; an amber warning banner when a refresh failed but cached data is
 still shown.
 
+Top tabs switch pages without a reload (hash routing):
+
+```text
+[ Repo Search | Projects ]
+
+#/projects:
+┌──────────────────────────────────────────────┐
+│  Projects                             (2)    │
+│  ┌────────────────────────┐ ┌──────────────┐ │
+│  │ 🔍 Search projects…    │ │ + New project│ │  ← column below 420px
+│  └────────────────────────┘ └──────────────┘ │
+│  ┌──────────────────────────────────────────┐│
+│  │ my-private-repo        [🔒 Private]   × ││  ← × = delete
+│  │ Internal tool…                          ││
+│  │ TypeScript · Added Jun 12, 2025         ││
+│  └──────────────────────────────────────────┘│
+└──────────────────────────────────────────────┘
+
++ New project → modal form:
+  Name* | Description | Language | URL | [ ] Private repository
+  [Cancel] [Create project]
+```
+
 ## Deployment
 
 Pushes to `main` trigger `.github/workflows/deploy.yml`: it runs tests, builds
@@ -80,7 +110,12 @@ and a manual deploy recipe.
 
 ## Checks
 
-- `npm test` — 43 automated tests covering components and the API layer
-  (pagination, cache, rate limit, error paths), MSW blocks real network calls.
+- `npm test` — 70 automated tests covering components, the API layer
+  (pagination, cache, rate limit, error paths) and the Projects page;
+  MSW blocks real network calls.
 - `scripts/manual-check.mjs` — Playwright layout checks at 375px and desktop.
+- `scripts/pagination-check.mjs` — Playwright pagination checks (8).
+- `scripts/projects-check.mjs` — Playwright E2E for the Projects page (19):
+  routing, form validation/create/private flag, reload persistence, delete,
+  live search, 375px column toolbar.
 - Full check log and fixed bugs: [bugs.md](bugs.md).
