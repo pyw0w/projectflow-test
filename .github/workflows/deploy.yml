@@ -1,9 +1,9 @@
 # Deploys the static build to the `web` branch on every push to `main`.
-# GitHub Pages must be configured to serve from the `web` branch root
+# GitHub Pages must serve from the `web` branch root
 # (Settings → Pages → Deploy from a branch → web / root).
 #
-# Flow: checkout → npm ci → npm test → npm run build → publish dist/ to `web`.
-# The `web` branch contains ONLY the built bundle — no sources, no node_modules.
+# Flow: checkout → npm ci → npm test → npm run build → publish dist/.
+# The `web` branch contains ONLY the built bundle — no sources, no deps.
 
 name: Deploy to GitHub Pages (web branch)
 
@@ -43,26 +43,36 @@ jobs:
       - name: Run tests
         run: npm test
 
-      # 5. Build the static bundle (base: '/projectflow-test/' in vite.config.js)
+      # 5. Build the static bundle (base is set in vite.config.js)
       - name: Build
         run: npm run build
 
-      # 6. Publish ONLY dist/ to the `web` branch (orphan-style commit).
-      #    Uses the built-in GITHUB_TOKEN — no secrets configured anywhere.
+      # 6. Publish ONLY dist/ to the `web` branch.
+      #    First run: remote `web` does not exist → orphan branch created,
+      #    dist/ committed and pushed. Later runs: continue from `web` tip.
+      #    Uses built-in GITHUB_TOKEN — no secrets anywhere.
       - name: Deploy dist to web branch
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email \
+            "github-actions[bot]@users.noreply.github.com"
 
-          # Clone the existing web branch (empty if it does not exist yet)
-          git fetch origin web || true
           workdir="$(mktemp -d)"
-          git worktree add "$workdir" --force -B web FETCH_HEAD 2>/dev/null \
-            || (cd "$workdir" && git checkout --orphan web)
+
+          # First deploy: remote `web` missing → create an orphan branch.
+          # Subsequent deploys: continue from the existing `web` tip.
+          if git fetch origin web 2>/dev/null; then
+            git worktree add "$workdir" --force -B web FETCH_HEAD
+          else
+            echo "INFO: branch web not found — creating (first deploy)"
+            git worktree add "$workdir" --force --detach
+            git -C "$workdir" switch --orphan web
+          fi
 
           # Replace the branch content with the fresh build only
-          find "$workdir" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          find "$workdir" -mindepth 1 -maxdepth 1 \
+            ! -name '.git' -exec rm -rf {} +
           cp -R dist/. "$workdir/"
 
           cd "$workdir"

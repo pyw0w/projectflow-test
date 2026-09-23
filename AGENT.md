@@ -15,7 +15,7 @@ Live URL after deployment: `https://pyw0w.github.io/projectflow-test/`
 
 ### Data flow
 
-```
+```text
 GitHub REST API (GET /users/pyw0w/repos, paginated)
         │
         ▼
@@ -41,7 +41,7 @@ typing only re-filters the in-memory array.**
 
 ## Repository structure
 
-```
+```text
 projectflow-test/
 ├── .github/workflows/deploy.yml   # CI/CD: test + build + push dist to `web` branch
 ├── index.html                     # Vite entry HTML (mounts #root)
@@ -149,19 +149,31 @@ Job `build-and-deploy` on `ubuntu-latest`, steps in order:
 6. **Deploy dist to web branch** — shell step using the built-in `GITHUB_TOKEN`
    (no secrets anywhere):
    - configure `github-actions[bot]` git identity;
-   - `git fetch origin web` (ok if branch doesn't exist yet);
-   - `git worktree add … -B web FETCH_HEAD`, falling back to
-     `git checkout --orphan web` on first run;
+   - `git fetch origin web 2>/dev/null` — decides the path:
+     - **branch exists** (2nd+ deploy): `git worktree add <tmp> --force -B web FETCH_HEAD`
+       → worktree continues from the remote `web` tip;
+     - **branch missing** (first deploy): `git worktree add <tmp> --force --detach`
+       then `git -C <tmp> switch --orphan web` → creates the unborn branch
+       (the previous version failed here: `FETCH_HEAD` did not exist and the
+       orphan fallback ran outside a git repo → `fatal: not a git repository`,
+       exit 128 — see bugs.md #9);
    - wipe everything except `.git`, copy `dist/.` in;
    - `git add -A`, skip if no changes, else commit
      `deploy: $GITHUB_SHA` and `git push origin HEAD:web`.
+
+   All three paths (first deploy / update / no changes) are covered by a local
+   simulation of the exact `run:` script extracted from the YAML.
 
 **Manual deploy** (without Actions):
 
 ```bash
 npm test && npm run build
-git fetch origin web || true
-git worktree add /tmp/web --force -B web FETCH_HEAD   # or orphan branch first time
+if git fetch origin web; then
+  git worktree add /tmp/web --force -B web FETCH_HEAD
+else
+  git worktree add /tmp/web --force --detach
+  git -C /tmp/web switch --orphan web
+fi
 find /tmp/web -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 cp -R dist/. /tmp/web/
 cd /tmp/web && git add -A && git commit -m "deploy: manual" && git push origin HEAD:web

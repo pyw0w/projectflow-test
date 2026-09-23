@@ -55,6 +55,30 @@
   span оказывался не цветной индикатор.
 - **Исправление:** `querySelector('span')` вызывается у элемента языка.
 
+### Баг #9 — блокер CI: первый деплой падал с `exit code 128`
+- **Где:** `.github/workflows/deploy.yml`, шаг «Deploy dist to web branch»
+- **Симптом** (лог Actions):
+
+  ```text
+  Run set -euo pipefail
+  fatal: couldn't find remote ref web
+  fatal: not a git repository (or any of the parent directories): .git
+  Error: Process completed with exit code 128.
+  ```
+- **Причина:** при первом запуске ветки `web` ещё нет → `git fetch origin web`
+  проваливается и `FETCH_HEAD` не создаётся; `git worktree add -B web FETCH_HEAD`
+  тоже падает, и фолбэк `(cd "$workdir" && git checkout --orphan web)`
+  выполнялся в обычном `mktemp`-каталоге без репозитория → «not a git repository».
+- **Исправление:** явная ветка по результату fetch:
+  `git fetch origin web 2>/dev/null` → если успех: `worktree add -B web FETCH_HEAD`;
+  если нет: `worktree add --detach` + `git -C <worktree> switch --orphan web`.
+  Заодно убрана awk-чистка worktree (в CI раннер свежий, она только ломала YAML).
+- **Проверка:** скрипт шага, извлечённый из YAML, прогнан локально на
+  bare-репозитории — 3 сценария PASS: первый деплой (создание `web`),
+  повторный (обновление ветки), без изменений («No changes to deploy»).
+- **Ещё в этом же коммите:** yamllint-ошибки line-length (>80) устранены,
+  YAML валиден (`js-yaml` parses OK).
+
 ### Наблюдение #7 (не баг, ограничение инструмента)
 - `scripts/manual-check.mjs` помечен knip как «unused file» — это ожидаемо:
   скрипт dev-only и не импортируется из приложения. Запускается вручную:
