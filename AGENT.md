@@ -52,7 +52,8 @@ projectflow-test/
 ├── README.md                      # human-facing readme
 ├── bugs.md                        # found/fixed bugs + full list of checks
 ├── scripts/
-│   └── manual-check.mjs           # Playwright layout/UX verification (dev-only, not shipped)
+│   ├── manual-check.mjs           # Playwright layout/UX verification (dev-only)
+│   └── pagination-check.mjs       # Playwright pagination verification (dev-only)
 └── src/
     ├── main.jsx                   # ReactDOM entry; imports token/global CSS
     ├── App.jsx                    # composition root: state (query, sort) + layout
@@ -76,6 +77,7 @@ projectflow-test/
     │   ├── ErrorState             # API failure / rate limit + retry
     │   ├── SortControl            # updated | stars | name
     │   ├── Skeleton               # shimmer placeholders on first load
+    │   ├── LoadMore               # "Show more" pagination + N-of-M counter
     │   └── RateLimitBadge         # remaining anonymous quota (60/h)
     └── test/
         ├── setup.js               # jest-dom, cleanup, MSW, localStorage shim
@@ -86,7 +88,7 @@ projectflow-test/
 
 | Component | Responsibility |
 |---|---|
-| `App` | Owns `query`/`sort` state, computes filtered+sorted list, picks the right state view (Skeleton/Error/Empty/List), header + warning banner + footer. |
+| `App` | Owns `query`/`sort` state, computes filtered+sorted list, paginates it (`PAGE_SIZE = 20`, `shown` counter reset on query/sort change), picks the right state view (Skeleton/Error/Empty/List+LoadMore), header + warning banner + footer. |
 | `Toolbar` | Layout only: search+actions row on desktop, column below 420px (CSS `max-width: 419.98px`). |
 | `SearchBar` | Controlled search input with icon and clear button; emits raw query via `onChange`. |
 | `SortControl` | Native select (updated/stars/name); emits sort key. |
@@ -95,6 +97,7 @@ projectflow-test/
 | `EmptyState` | "No repositories found" with the query echoed. |
 | `ErrorState` | Blocking error (message, rate-limit reset time, retry button). Never a blank screen. |
 | `Skeleton` | 4 shimmering placeholder cards during the very first load (no cache). |
+| `LoadMore` | Incremental pagination: shows `N of M repositories` and a "Show more" button; hidden when everything is visible. |
 | `RateLimitBadge` | `remaining/60` quota chip; amber ≤10, red at 0. |
 
 Non-visual core:
@@ -211,6 +214,7 @@ Components (`src/components/*.test.jsx`):
 - `ErrorState` — generic failure + retry click, rate-limit wording + reset time, fallback message (never blank).
 - `SortControl` — all options present, current value selected, emits new key.
 - `Skeleton` — N placeholders, no real content.
+- `LoadMore` — `N of M` counter, click fires `onNext`, hidden when all shown.
 - `RateLimitBadge` — hidden without data, shows quota, `low` ≤10, `critical` = 0.
 
 ### Manual — `scripts/manual-check.mjs` (Playwright, dev-only)
@@ -222,6 +226,10 @@ toolbar `flex-direction` column/row per breakpoint, all elements inside
 viewport, safe-area top padding, **0 API calls while typing**, filter+empty
 state < 1000ms, query clearing restores list, cards link externally.
 
+Pagination: `node scripts/pagination-check.mjs` (same Playwright setup) —
+first page capped at 20, `N of M` counter, Show more reveals next chunk,
+button hidden when all visible, pagination resets on new query (8 checks).
+
 See `bugs.md` for the log of all checks and found/fixed issues.
 
 ## Extension points (where to add features)
@@ -229,7 +237,7 @@ See `bugs.md` for the log of all checks and found/fixed issues.
 | Feature | Where |
 |---|---|
 | Filter by language | Add a `language` state in `App.jsx`; option list can come from `repos` (unique `language`); apply in `matchesQuery`/`useMemo`. UI → new `LanguageFilter.jsx` in `components/`. |
-| Pagination / virtual scroll | `App.jsx` `visible` slice + a `Pagination` component; or windowing in `RepoList.jsx`. Data layer already loads all pages. |
+| Pagination / virtual scroll | **Implemented**: `LoadMore.jsx` + `PAGE_SIZE`/`shown` state in `App.jsx` (client-side slice). For numbered pages or virtualization, edit `RepoList.jsx`/`App.jsx`; data layer already loads all pages. |
 | Authorized requests (token) | `src/api/githubApi.js`: add `Authorization: Bearer …` header — but a static public app must not embed tokens; use a user-supplied token stored in sessionStorage, surfaced via a settings UI. Also update rate-limit handling (5000/h). |
 | Manual theme toggle | Tokens already switch via `prefers-color-scheme`; add a toggle that sets `data-theme="dark|light"` on `<html>` and extend `tokens.css` with `[data-theme]` overrides; mount control in `App` header. |
 | Debounced server-side search | Would contradict the current design (client-side by requirement); if needed, modify `useRepos.js`/`App.jsx` to query `GET /search/repositories?q=user:pyw0w+<q>` — mind the stricter search rate limit. |

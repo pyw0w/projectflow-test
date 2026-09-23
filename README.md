@@ -21,6 +21,8 @@ fully static.
 - 💀 **Skeleton shimmer** on the very first load instead of a blank screen.
 - 📱 **Mobile-first toolbar** — search and buttons sit in one row on desktop
   and stack into a column below 420px (no overlap), with safe-area insets.
+- 📄 **Pagination** — the list shows 20 repositories at a time with a
+  "Show more" button and an `N of M` counter; resets on query/sort change.
 - 🚦 **Rate-limit awareness** — badge shows the remaining anonymous quota
   (60 req/hour) and the UI degrades softly instead of white-screening.
 
@@ -40,7 +42,7 @@ this single-page app doesn't need.
 ```bash
 npm ci            # install dependencies
 npm run dev       # dev server → http://localhost:5173/projectflow-test/
-npm test          # run the test suite (40 tests, no network access)
+npm test          # run the test suite (43 tests, no network access)
 npm run build     # production bundle → dist/
 npm run preview   # serve the production bundle locally
 ```
@@ -59,7 +61,7 @@ npm run preview   # serve the production bundle locally
 │  │ Description text…                        ││     topics, language dot,
 │  │ javascript · Updated Jun 12, 2025        ││     stars, updated date
 │  └──────────────────────────────────────────┘│
-│  … more cards                                │
+│  … more cards (20 per page, "Show more" below)                       │
 └──────────────────────────────────────────────┘
      <420px: search / sort / refresh stack vertically
 ```
@@ -78,7 +80,7 @@ and a manual deploy recipe.
 
 ## Checks
 
-- `npm test` — 40 automated tests covering components and the API layer
+- `npm test` — 43 automated tests covering components and the API layer
   (pagination, cache, rate limit, error paths), MSW blocks real network calls.
 - `scripts/manual-check.mjs` — Playwright layout checks at 375px and desktop.
 - Full check log and fixed bugs: [bugs.md](bugs.md).

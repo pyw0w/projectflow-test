@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRepos } from './hooks/useRepos'
 import Toolbar from './components/Toolbar'
 import SearchBar from './components/SearchBar'
@@ -7,6 +7,7 @@ import RepoList from './components/RepoList'
 import EmptyState from './components/EmptyState'
 import ErrorState from './components/ErrorState'
 import Skeleton from './components/Skeleton'
+import LoadMore from './components/LoadMore'
 import RateLimitBadge from './components/RateLimitBadge'
 import styles from './App.module.css'
 
@@ -28,15 +29,28 @@ const SORTERS = {
   name: (a, b) => a.name.localeCompare(b.name),
 }
 
+const PAGE_SIZE = 20
+
 export default function App() {
   const { repos, status, error, rateLimit, isRefreshing, refresh } = useRepos()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('updated')
+  const [shown, setShown] = useState(PAGE_SIZE)
+  const firstRender = useRef(true)
 
   const visible = useMemo(() => {
     if (!repos) return []
     return repos.filter((r) => matchesQuery(r, query)).sort(SORTERS[sort])
   }, [repos, query, sort])
+
+  // New query/sort → start from the first page again.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false
+      return
+    }
+    setShown(PAGE_SIZE)
+  }, [query, sort])
 
   return (
     <div className={styles.app}>
@@ -91,7 +105,14 @@ export default function App() {
         ) : visible.length === 0 ? (
           <EmptyState query={query} />
         ) : (
-          <RepoList repos={visible} />
+          <>
+            <RepoList repos={visible.slice(0, shown)} />
+            <LoadMore
+              shown={Math.min(shown, visible.length)}
+              total={visible.length}
+              onNext={() => setShown((n) => n + PAGE_SIZE)}
+            />
+          </>
         )}
       </main>
 
