@@ -1,0 +1,30 @@
+{
+  "name": "projectflow-test",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GitHub Repo Search — search page over public repositories of the pyw0w account",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.8",
+    "@testing-library/react": "^16.0.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "jsdom": "^25.0.0",
+    "msw": "^2.4.9",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.1"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true,
+    "msw@2.15.0": true
+  }
+}

@@ -1,0 +1,67 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.bar {
+  background: linear-gradient(
+    90deg,
+    var(--bg-subtle) 25%,
+    var(--bg-surface-hover) 50%,
+    var(--bg-subtle) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-sm);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.title {
+  width: 40%;
+  height: 20px;
+}
+
+.line {
+  width: 100%;
+  height: 14px;
+}
+
+.lineShort {
+  width: 65%;
+  height: 14px;
+}
+
+.footer {
+  display: flex;
+  gap: var(--sp-4);
+}
+
+.chip {
+  width: 70px;
+  height: 12px;
+}
+
+.chipWide {
+  width: 110px;
+  height: 12px;
+  margin-left: auto;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
